@@ -17,13 +17,30 @@ then
     echo "Connect a device, or enable USB debugging!"
     exit
 fi
+is_range_index(){
+    ind=$1
+    res=0
+    if [[ $ind != *"-"* ]] 
+    then
+        res=1
+    fi
+    echo $res
+}
 sanity_check(){
     indexes=$1
     max_index=$2
     res=0
     for ind in ${indexes[@]}
     do
-        if (( $ind >= $max_index ))
+        if [[ `is_range_index $ind` == 0 ]] 
+        then
+            if (( `echo $1 | cut -d "-" -f1` >= $2 || `echo $1 | cut -d "-" -f2` >= $2 )) #check range index
+            then
+                res=1
+                break
+            fi
+        fi
+        if (( $ind >= $max_index )) #check normal index
         then
             res=1
             break
@@ -38,7 +55,17 @@ pull_files(){
     out=""
     for ind in ${indexes[@]}
     do
-        adb pull "${files_path[$ind]}" $dest_path
+        if [[ `is_range_index $ind` == 0 ]] 
+        then
+            first=`echo $ind | cut -d "-" -f1`
+            second=`echo $ind | cut -d "-" -f2`
+            for i in $(seq $first 1 $second) #pull range files
+            do
+                adb pull "${files_path[$i]}" $dest_path
+            done
+        else
+            adb pull "${files_path[$ind]}" $dest_path #pull single file
+        fi
     done
 
 }
@@ -60,15 +87,14 @@ while true; do
         read line
         
         declare -a f_indexes
-        if [[ $line =~ ^[0-9]+(,[0-9]+)*$ ]]
+        if [[ $line =~ ^[0-9]+((,|-)[0-9]+)*$ ]]
         then
-            if [[ $line == *","* ]]
+            if [[ $line == *","* || $line == *"-"* ]]
             then
                 f_indexes=(`echo $line | tr ',' ' '`)
             else
                 f_indexes=($line)
             fi
-
             if (( $(sanity_check ${f_indexes[@]} $l) == 0 )) #check if one index exceed the lines length
             then
                 read -p "Insert a destination path where save files" dest_path
