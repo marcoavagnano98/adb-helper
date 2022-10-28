@@ -26,6 +26,7 @@ is_range_index(){
     fi
     echo $res
 }
+
 sanity_check(){
     indexes=$1
     max_index=$2
@@ -48,6 +49,7 @@ sanity_check(){
     done
     echo $res
 }
+
 pull_files(){   
     local -n files_path=$1 #number of index
     dest_path=$2
@@ -64,7 +66,9 @@ pull_files(){
                 adb pull "${files_path[$i]}" $dest_path
             done
         else
-            adb pull "${files_path[$ind]}" $dest_path #pull single file
+            _path="${files_path[$ind]}"
+            [ -d "${files_path[$ind]}" ] && echo _path="${files_path[$ind]}/."
+            adb pull "$_path" $dest_path #pull single file or directory recursively
         fi
     done
 
@@ -73,10 +77,6 @@ while true; do
     echo "Type quit to close the script"
     read -p 'Type a filename or a part of file to find: ' filename
     [[ $filename == "quit" ]] && exit 1
-    #then
-    #    exit 1
-    #fi
-    #search=`adb shell find /sdcard/\* -name *${filename}*`
     declare -a file_res
     readarray -t file_res <<< $(adb shell find /sdcard/\* -name "*${filename}*")
     printf "%s\n" "${file_res[@]}"
